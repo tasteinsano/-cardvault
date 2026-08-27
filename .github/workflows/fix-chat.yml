@@ -1,0 +1,54 @@
+name: Fix CardVault chat
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix-chat:
+    if: ${{ github.event.head_commit.message != 'Fix CardVault chat database relationship' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch chat code
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+          start=s.find('<script id="cardvault-chat-battle-js">')
+          end=s.find('</script>', start)
+          if start < 0 or end < 0:
+              raise SystemExit('chat script not found')
+          new=r'''<script id="cardvault-chat-battle-js">
+(function(){'use strict';
+const SUPABASE_URL='https://mngrhjkwbedsnipzfhlv.supabase.co',SUPABASE_KEY='sb_publishable_cVi6iGhLNcSMAi2OlmsIsQ_RNluD7uT';
+let sb=null,chatUser=null,currentRoom='General',chatChannel=null;
+function q(id){return document.getElementById(id)}
+function esc2(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+async function ensureUser(){if(chatUser)return chatUser;sb=sb||window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);const sess=await sb.auth.getSession();if(sess.data?.session?.user){chatUser=sess.data.session.user;return chatUser}const r=await sb.auth.signInAnonymously();if(r.error)throw r.error;chatUser=r.data?.user||r.data?.session?.user;if(!chatUser)throw new Error('Could not determine the signed-in chat user.');return chatUser}
+async function initChat(){try{await ensureUser();q('chatName').value=localStorage.getItem('cardvault_chat_name')||'CardVault Player';q('chatStatus').textContent='Connected • '+currentRoom;await loadRoom();if(chatChannel)await sb.removeChannel(chatChannel);chatChannel=sb.channel('cardvault-chat-live').on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages'},()=>loadRoom()).subscribe()}catch(e){q('chatStatus').textContent='Chat connection failed: '+(e?.message||e)}}
+async function ensureProfile(){try{const u=await ensureUser(),name=(q('chatName').value.trim()||'CardVault Player').slice(0,30);localStorage.setItem('cardvault_chat_name',name);const r=await sb.from('profiles').upsert({id:u.id,display_name:name},{onConflict:'id'});if(r.error)throw r.error;q('chatStatus').textContent='Connected • '+currentRoom+' • '+name}catch(e){q('chatStatus').textContent='Could not save name: '+(e?.message||e)}}
+async function roomId(){const r=await sb.from('chat_rooms').select('id').eq('name',currentRoom).maybeSingle();if(r.error)throw r.error;if(!r.data)throw new Error('Room not found: '+currentRoom);return r.data.id}
+async function loadRoom(){try{await ensureUser();const rid=await roomId();const r=await sb.from('chat_messages').select('id,user_id,body,created_at').eq('room_id',rid).order('created_at',{ascending:true}).limit(200);if(r.error)throw r.error;const data=r.data||[];q('chatMessages').innerHTML=data.map(m=>'<div style="padding:7px 0;border-bottom:1px solid #2b3240"><b>'+esc2(m.user_id===chatUser?.id?(localStorage.getItem('cardvault_chat_name')||'You'):'Player')+'</b> <span class="small">'+new Date(m.created_at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+'</span><div>'+esc2(m.body)+'</div></div>').join('')||'<div class="muted">No messages yet. Start the conversation!</div>';q('chatMessages').scrollTop=q('chatMessages').scrollHeight}catch(e){q('chatStatus').textContent='Chat messages failed: '+(e?.message||e)}}
+async function sendChat(){try{const body=q('chatInput').value.trim();if(!body)return;const u=await ensureUser();await ensureProfile();const rid=await roomId();const r=await sb.from('chat_messages').insert({room_id:rid,user_id:u.id,body});if(r.error)throw r.error;q('chatInput').value='';await loadRoom()}catch(e){q('chatStatus').textContent='Could not send: '+(e?.message||e)}}
+function showOnly(id){['scanner','resultCard','collection','decks','chat','battle'].forEach(x=>{const el=q(x);if(el)el.classList.toggle('hidden',x!==id)});if(id==='collection')renderCollection();if(id==='decks')renderDecks();if(id==='chat')initChat()}
+q('chatTab').onclick=()=>showOnly('chat');q('battleTab').onclick=()=>showOnly('battle');q('chatInput').addEventListener('keydown',e=>{if(e.key==='Enter')sendChat()});q('sendChat').onclick=sendChat;q('saveChatName').onclick=ensureProfile;document.querySelectorAll('.chat-room').forEach(b=>b.onclick=async()=>{currentRoom=b.dataset.room;q('chatStatus').textContent='Loading '+currentRoom+'…';await loadRoom()});
+let battle={p1:{name:'You',life:20,hand:0,graveyard:0,exile:0},p2:{name:'Opponent',life:20,hand:0,graveyard:0,exile:0},active:1,turn:1,started:false};
+function blog(s){const x=q('battleLog');if(!x)return;const d=document.createElement('div');d.textContent=s;x.appendChild(d);x.scrollTop=x.scrollHeight}
+function brender(){q('p1Name').textContent=battle.p1.name;q('p2Name').textContent=battle.p2.name;q('p1Life').textContent=battle.p1.life;q('p2Life').textContent=battle.p2.life;q('p1Zones').textContent=`Hand ${battle.p1.hand} • Graveyard ${battle.p1.graveyard} • Exile ${battle.p1.exile}`;q('p2Zones').textContent=`Hand ${battle.p2.hand} • Graveyard ${battle.p2.graveyard} • Exile ${battle.p2.exile}`;q('battleTurn').textContent=battle.started?`▶️ End ${battle.active===1?battle.p1.name:battle.p2.name} Turn`:'▶️ Start Player 1 Turn'}
+function breset(){battle={p1:{name:q('battleP1').value.trim()||'You',life:20,hand:0,graveyard:0,exile:0},p2:{name:q('battleP2').value.trim()||'Opponent',life:20,hand:0,graveyard:0,exile:0},active:1,turn:1,started:false};q('battleLog').innerHTML='';brender();blog('New game started. Both players begin at 20 life.')}
+q('battleP1').oninput=()=>{battle.p1.name=q('battleP1').value||'You';brender()};q('battleP2').oninput=()=>{battle.p2.name=q('battleP2').value||'Opponent';brender()};document.querySelectorAll('[data-life]').forEach(b=>b.onclick=()=>{const p=battle[b.dataset.life],d=Number(b.dataset.delta);p.life+=d;brender();blog(`${p.name}: ${d>0?'+':''}${d} life (${p.life})`);if(p.life<=0)blog(`${p.name} is at 0 or less life.`)});q('battleTurn').onclick=()=>{if(!battle.started){battle.started=true;battle.active=1;battle.turn=1;blog(`${battle.p1.name}'s turn.`)}else{battle.active=battle.active===1?2:1;if(battle.active===1)battle.turn++;blog(`${battle.active===1?battle.p1.name:battle.p2.name}'s turn (turn ${battle.turn}).`)}brender()};q('battleCoin').onclick=()=>blog('Coin flip: '+(Math.random()<.5?'Heads':'Tails'));q('battleDice').onclick=()=>blog('d20 roll: '+(Math.floor(Math.random()*20)+1));q('battleReset').onclick=breset;brender();breset();
+})();
+</script>'''
+          s=s[:start]+new+s[end+9:]
+          p.write_text(s)
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'Fix CardVault chat database relationship'
+          git push
