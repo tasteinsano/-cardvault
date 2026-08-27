@@ -113,69 +113,44 @@ function showCard(c){resultCard.classList.remove('hidden');const img=c.image_uri
 startBtn.onclick=startCamera;captureBtn.onclick=capture;document.getElementById('again').onclick=()=>{resultCard.classList.add('hidden');setStatus('Ready for another scan.');window.scrollTo({top:0,behavior:'smooth'})};document.getElementById('scanTab').onclick=()=>{scanner.classList.remove('hidden');collection.classList.add('hidden')};document.getElementById('collectionTab').onclick=()=>{collection.classList.remove('hidden');scanner.classList.add('hidden');renderCollection()};renderCollection();
  // ===== SHARED DECKS =====
 async function loadSharedDecks(){
-  const box = document.getElementById("sharedDecksList");
-  if(!box) return;
+   const box = document.getElementById("sharedDecksList");
+  if (!box) return;
 
   box.innerHTML = '<div class="status">Loading shared decks...</div>';
 
-  try{
+  try {
     const { data, error } = await supabaseClient
       .from("shared_decks")
       .select("*")
-      .order("created_at", { ascending:false });
+      .order("created_at", { ascending: false });
 
-    if(error) throw error;
+    if (error) throw error;
 
-    if(!data || !data.length){
+    if (!data || data.length === 0) {
       box.innerHTML = '<div class="status">No shared decks yet.</div>';
       return;
     }
 
-    box.innerHTML = data.map(deck => {
-      let cards = deck.Cards;
-
-      if(typeof cards === "string"){
-        try{ cards = JSON.parse(cards); }catch(e){}
-      }
-
-      const cardCount = Array.isArray(cards)
-        ? cards.length
-        : (cards && typeof cards === "object"
-            ? Object.keys(cards).length
-            : 0);
-
-      const name = deck.Name || "Untitled Deck";
-      const author = deck.Author || "Anonymous";
-      const description = deck.Description || "No description.";
-
-      return `
-        <div class="card" style="margin:12px 0">
-          <div style="font-size:20px;font-weight:800">
-            ${esc(name)}
-          </div>
-
-          <div class="small" style="margin-top:5px">
-            Shared by ${esc(author)}
-          </div>
-
-          <p class="muted">${esc(description)}</p>
-
-          <div style="display:flex;gap:18px;align-items:center">
-            <span>🃏 ${cardCount} cards</span>
-            <span>❤️ ${deck.Like || 0}</span>
-          </div>
+    box.innerHTML = data.map(deck => `
+      <div class="card" style="margin:12px 0">
+        <h3>${esc(deck.name || 'Unnamed Deck')}</h3>
+        <div class="small">
+          By ${esc(deck.author || 'Anonymous')}
         </div>
-      `;
-    }).join("");
+        <p>${esc(deck.description || 'No description')}</p>
+        <div class="small">
+          ❤️ ${Number(deck.like || 0)} likes
+        </div>
+      </div>
+    `).join('');
 
-  }catch(error){
-    console.error("Shared Decks error:", error);
+  } catch (error) {
+    console.error(error);
     box.innerHTML =
       '<div class="status">Could not load shared decks.</div>';
   }
 }
-
-
+  
  // ==================== DECK BUILDER ====================
 
 const deckBuilderTab = document.getElementById('deckBuilderTab');
