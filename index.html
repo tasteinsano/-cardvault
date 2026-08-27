@@ -175,15 +175,7 @@ async function loadSharedDecks(){
   }
 }
 
-if (sharedDecksTab) {
-  sharedDecksTab.onclick = () => {
-    document.getElementById('scanner')?.classList.add('hidden');
-    document.getElementById('resultCard')?.classList.add('hidden');
-    document.getElementById('collection')?.classList.add('hidden');
-    sharedDecks?.classList.remove('hidden');
-    loadSharedDecks();
-  };
-}
+
  // ==================== DECK BUILDER ====================
 
 const deckBuilderTab = document.getElementById('deckBuilderTab');
