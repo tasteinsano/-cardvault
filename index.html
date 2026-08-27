@@ -7,6 +7,16 @@
 <style>
 *{box-sizing:border-box}body{margin:0;background:#090b10;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Arial,sans-serif}.app{max-width:700px;margin:auto;padding:18px 16px 36px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}h1{margin:0;font-size:30px}.muted{color:#9ca3af}.card{background:#151922;border:1px solid #2b3240;border-radius:18px;padding:18px;margin-top:14px}button{border:0;border-radius:14px;padding:14px 18px;font-size:17px;font-weight:700;color:#fff;background:#2563eb}.secondary{background:#252b36}.full{width:100%;margin-top:12px}video{width:100%;border-radius:16px;background:#000;aspect-ratio:3/4;object-fit:cover}.hidden{display:none}.status{padding:13px 14px;border-radius:12px;background:#202632;margin-top:12px;line-height:1.4}.result{display:flex;gap:14px;align-items:flex-start}.result img{width:105px;border-radius:10px}.name{font-size:21px;font-weight:800;margin-bottom:5px}.price{font-size:18px;color:#86efac;font-weight:700}.small{font-size:13px;color:#aab2bf}.choices{display:grid;gap:10px;margin-top:14px}.choice{display:flex;gap:12px;align-items:center;text-align:left;background:#202632;border:1px solid #333b49}.choice img{width:58px;border-radius:6px}.choice .meta{flex:1}.badge{display:inline-block;padding:3px 7px;border-radius:7px;background:#263142;color:#93c5fd;font-size:12px;margin-top:4px}.nav{display:flex;gap:8px;margin-bottom:14px}.nav button{flex:1}
 </style>
+ <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = https://mngrhjkwbedsnipzfhlv.supabase.co/rest/v1/
+const SUPABASE_PUBLISHABLE_KEY = sb_publishable_cVi6iGhLNcSMAi2OlmsIsQ_RNluD7uT
+
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY
+);
+</script>
 </head>
 <body>
 <div class="app">
