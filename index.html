@@ -32,6 +32,14 @@ const supabaseClient = window.supabase.createClient(
 </section>
 <section id="resultCard" class="card hidden"><h2>Card Found</h2><div id="result"></div><button id="again" class="full secondary">Scan Another Card</button></section>
 <section id="collection" class="card hidden"><h2>My Collection</h2><div id="cards"></div></section>
+ <section id="sharedDecks" class="card hidden">
+  <h2>🌐 Shared Decks</h2>
+  <p class="muted">Browse decks shared by other collectors.</p>
+
+  <div id="sharedDecksList">
+    <div class="status">Loading shared decks...</div>
+  </div>
+</section>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
@@ -74,5 +82,70 @@ async function findPrintings(name,cn){try{let q='!'+name;let r=await fetch('http
 function showMatches(matches,name,cn){resultCard.classList.remove('hidden');resultEl.innerHTML=`<div class="name">${esc(name)}</div><div class="small">${cn?'Collector number detected: '+esc(cn)+'. ':''}Choose the matching printing:</div><div class="choices">${matches.map((c,i)=>{const img=c.image_uris?.small||c.card_faces?.[0]?.image_uris?.small||'';const price=c.prices?.usd?'$'+c.prices.usd:'Price unavailable';return `<button class="choice" data-i="${i}">${img?`<img src="${img}" alt="">`:''}<span class="meta"><b>${esc(c.set_name||'Unknown set')}</b><br><span class="small">${esc(c.set?.toUpperCase()||'')} • #${esc(c.collector_number||'?')}</span><br><span class="price">${price}</span></span></button>`}).join('')}</div>`;resultEl.querySelectorAll('.choice').forEach(b=>b.onclick=()=>showCard(matches[Number(b.dataset.i)]));resultCard.scrollIntoView({behavior:'smooth'})}
 function showCard(c){resultCard.classList.remove('hidden');const img=c.image_uris?.normal||c.card_faces?.[0]?.image_uris?.normal||'';const price=c.prices?.usd?'$'+c.prices.usd:'Price unavailable';resultEl.innerHTML=`<div class="result">${img?`<img src="${img}" alt="">`:''}<div><div class="name">${esc(c.name)}</div><div class="small">${esc(c.set_name||'')} • #${esc(c.collector_number||'?')}</div><div class="price">${price}</div></div></div><button id="add" class="full">➕ Add to Collection</button>`;document.getElementById('add').onclick=()=>{const arr=cards();arr.unshift({name:c.name,set:c.set_name,setCode:c.set,id:c.id,collector:c.collector_number,price:c.prices?.usd||null});saveCards(arr);renderCollection();document.getElementById('add').textContent='✓ Added to Collection';document.getElementById('add').disabled=true};resultCard.scrollIntoView({behavior:'smooth'})}
 startBtn.onclick=startCamera;captureBtn.onclick=capture;document.getElementById('again').onclick=()=>{resultCard.classList.add('hidden');setStatus('Ready for another scan.');window.scrollTo({top:0,behavior:'smooth'})};document.getElementById('scanTab').onclick=()=>{scanner.classList.remove('hidden');collection.classList.add('hidden')};document.getElementById('collectionTab').onclick=()=>{collection.classList.remove('hidden');scanner.classList.add('hidden');renderCollection()};renderCollection();
+ // ===== SHARED DECKS =====
+async function loadSharedDecks(){
+  const box = document.getElementById("sharedDecksList");
+  if(!box) return;
+
+  box.innerHTML = '<div class="status">Loading shared decks...</div>';
+
+  try{
+    const { data, error } = await supabaseClient
+      .from("shared_decks")
+      .select("*")
+      .order("created_at", { ascending:false });
+
+    if(error) throw error;
+
+    if(!data || !data.length){
+      box.innerHTML = '<div class="status">No shared decks yet.</div>';
+      return;
+    }
+
+    box.innerHTML = data.map(deck => {
+      let cards = deck.Cards;
+
+      if(typeof cards === "string"){
+        try{ cards = JSON.parse(cards); }catch(e){}
+      }
+
+      const cardCount = Array.isArray(cards)
+        ? cards.length
+        : (cards && typeof cards === "object"
+            ? Object.keys(cards).length
+            : 0);
+
+      const name = deck.Name || "Untitled Deck";
+      const author = deck.Author || "Anonymous";
+      const description = deck.Description || "No description.";
+
+      return `
+        <div class="card" style="margin:12px 0">
+          <div style="font-size:20px;font-weight:800">
+            ${esc(name)}
+          </div>
+
+          <div class="small" style="margin-top:5px">
+            Shared by ${esc(author)}
+          </div>
+
+          <p class="muted">${esc(description)}</p>
+
+          <div style="display:flex;gap:18px;align-items:center">
+            <span>🃏 ${cardCount} cards</span>
+            <span>❤️ ${deck.Like || 0}</span>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+  }catch(error){
+    console.error("Shared Decks error:", error);
+    box.innerHTML =
+      '<div class="status">Could not load shared decks.</div>';
+  }
+}
+
+loadSharedDecks();
 </script>
 </body></html>
