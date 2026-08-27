@@ -21,7 +21,11 @@ const supabaseClient = window.supabase.createClient(
 <body>
 <div class="app">
 <div class="top"><h1>CardVault</h1><span class="muted">Magic Card Scanner</span></div>
-<div class="nav"><button id="scanTab">📷 Scan Card</button><button class="secondary" id="collectionTab">🗃 Collection</button></div>
+<div class="nav">
+  <button id="scanTab">📷 Scan Card</button>
+  <button id="collectionTab">🗃️ Collection</button>
+  <button id="sharedDecksTab">🌐 Shared Decks</button>
+</div>
 <section id="scanner" class="card">
 <h2>Scan a card</h2><p class="muted">No typing required. Hold one Magic card in view, then scan it. CardVault will read the name and collector number when possible.</p>
 <video id="video" autoplay playsinline muted></video>
@@ -147,5 +151,55 @@ async function loadSharedDecks(){
 }
 
 loadSharedDecks();
+// Shared Decks
+const sharedDecksTab = document.getElementById('sharedDecksTab');
+const sharedDecks = document.getElementById('sharedDecks');
+const sharedDecksList = document.getElementById('sharedDecksList');
+
+async function loadSharedDecks() {
+  sharedDecksList.innerHTML =
+    '<div class="status">Loading shared decks...</div>';
+
+  const { data, error } = await supabaseClient
+    .from('shared_decks')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    sharedDecksList.innerHTML =
+      '<div class="status">Could not load shared decks.</div>';
+    console.error(error);
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    sharedDecksList.innerHTML =
+      '<div class="status">No shared decks yet.</div>';
+    return;
+  }
+
+  sharedDecksList.innerHTML = data.map(deck => `
+    <div class="card" style="margin:12px 0">
+      <h3>${esc(deck.name || 'Unnamed Deck')}</h3>
+      <div class="small">
+        By ${esc(deck.author || 'Anonymous')}
+      </div>
+      <p>${esc(deck.description || 'No description')}</p>
+      <div class="small">
+        ❤️ ${Number(deck.like || 0)} likes
+      </div>
+    </div>
+  `).join('');
+}
+
+if (sharedDecksTab) {
+  sharedDecksTab.onclick = () => {
+    document.getElementById('scanner')?.classList.add('hidden');
+    document.getElementById('resultCard')?.classList.add('hidden');
+    document.getElementById('collection')?.classList.add('hidden');
+    sharedDecks?.classList.remove('hidden');
+    loadSharedDecks();
+  };
+}
 </script>
 </body></html>
