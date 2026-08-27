@@ -166,11 +166,11 @@ async function loadSharedDecks() {
     .order('created_at', { ascending: false });
 
   if (error) {
-    sharedDecksList.innerHTML =
-      '<div class="status">Could not load shared decks.</div>';
-    console.error(error);
-    return;
-  }
+  sharedDecksList.innerHTML =
+    `<div class="status">Could not load shared decks: ${esc(error.message || error)}</div>`;
+  console.error(error);
+  return;
+}
 
   if (!data || data.length === 0) {
     sharedDecksList.innerHTML =
