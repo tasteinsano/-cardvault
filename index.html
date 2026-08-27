@@ -182,8 +182,58 @@ const sharedDecks = document.getElementById('sharedDecks');
 const sharedDecksList = document.getElementById('sharedDecksList');
 
 async function loadSharedDecks() {
-  sharedDecksList.innerHTML =
-    '<div class="status">Loading shared decks...</div>';
+  const box = document.getElementById("sharedDecksList");
+
+  box.innerHTML = '<div class="status">Loading shared decks...</div>';
+
+  try {
+    const result = await Promise.race([
+      supabaseClient
+        .from("shared_decks")
+        .select("*")
+        .order("created_at", { ascending: false }),
+
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Request timed out")), 8000)
+      )
+    ]);
+
+    const { data, error } = result;
+
+    if (error) {
+      console.error("Shared Decks error:", error);
+      box.innerHTML =
+        '<div class="status">Could not load shared decks: ' +
+        error.message +
+        "</div>";
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      box.innerHTML = '<div class="status">No shared decks yet.</div>';
+      return;
+    }
+
+    box.innerHTML = data.map(deck => {
+      const name = deck.name || "Untitled Deck";
+      const cards = Array.isArray(deck.cards) ? deck.cards : [];
+
+      return `
+        <div class="card">
+          <h3>🌐 ${name}</h3>
+          <p class="muted">${cards.length} cards</p>
+        </div>
+      `;
+    }).join("");
+
+  } catch (error) {
+    console.error("Shared Decks error:", error);
+    box.innerHTML =
+      '<div class="status">Could not load shared decks: ' +
+      error.message +
+      "</div>";
+  }
+}
 
   const { data, error } = await supabaseClient
     .from('shared_decks')
