@@ -188,7 +188,23 @@ async function loadSharedDecks() {
       "</div>";
   }
 }
-  
+  // ===== SHARED DECKS BUTTON =====
+const sharedDecksTab = document.getElementById("sharedDecksTab");
+const sharedDecks = document.getElementById("sharedDecks");
+if (sharedDecksTab && sharedDecks) {
+  sharedDecksTab.onclick = function () {
+    // Hide the other main sections
+    document.getElementById("scanner")?.classList.add("hidden");
+    document.getElementById("resultCard")?.classList.add("hidden");
+    document.getElementById("collection")?.classList.add("hidden");
+    document.getElementById("deckBuilder")?.classList.add("hidden");
+    // Show Shared Decks
+    sharedDecks.classList.remove("hidden");
+    // Load the shared decks
+    loadSharedDecks();
+  };
+}
+
  // ==================== DECK BUILDER ====================
 
 const deckBuilderTab = document.getElementById('deckBuilderTab');
@@ -323,5 +339,15 @@ if (saveDeck) {
       `Saved "${name}" with ${deckCards.reduce((n, c) => n + c.quantity, 0)} cards.`;
   };
 }
+ sharedDecksTab.onclick = function () {
+  document.getElementById('scanner').classList.add('hidden');
+  document.getElementById('deckBuilder').classList.add('hidden');
+  document.getElementById('resultCard').classList.add('hidden');
+  document.getElementById('collection').classList.add('hidden');
+
+  document.getElementById('sharedDecks').classList.remove('hidden');
+
+  loadSharedDecks();
+};
 </script>
 </body></html>
