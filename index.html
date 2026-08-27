@@ -112,11 +112,13 @@ function showMatches(matches,name,cn){resultCard.classList.remove('hidden');resu
 function showCard(c){resultCard.classList.remove('hidden');const img=c.image_uris?.normal||c.card_faces?.[0]?.image_uris?.normal||'';const price=c.prices?.usd?'$'+c.prices.usd:'Price unavailable';resultEl.innerHTML=`<div class="result">${img?`<img src="${img}" alt="">`:''}<div><div class="name">${esc(c.name)}</div><div class="small">${esc(c.set_name||'')} • #${esc(c.collector_number||'?')}</div><div class="price">${price}</div></div></div><button id="add" class="full">➕ Add to Collection</button>`;document.getElementById('add').onclick=()=>{const arr=cards();arr.unshift({name:c.name,set:c.set_name,setCode:c.set,id:c.id,collector:c.collector_number,price:c.prices?.usd||null});saveCards(arr);renderCollection();document.getElementById('add').textContent='✓ Added to Collection';document.getElementById('add').disabled=true};resultCard.scrollIntoView({behavior:'smooth'})}
 startBtn.onclick=startCamera;captureBtn.onclick=capture;document.getElementById('again').onclick=()=>{resultCard.classList.add('hidden');setStatus('Ready for another scan.');window.scrollTo({top:0,behavior:'smooth'})};document.getElementById('scanTab').onclick=()=>{scanner.classList.remove('hidden');collection.classList.add('hidden')};document.getElementById('collectionTab').onclick=()=>{collection.classList.remove('hidden');scanner.classList.add('hidden');renderCollection()};renderCollection();
  // ===== SHARED DECKS =====
-async function loadSharedDecks(){
-   const box = document.getElementById("sharedDecksList");
+async function loadSharedDecks() {
+  const box = document.getElementById("sharedDecksList");
+
   if (!box) return;
 
-  box.innerHTML = '<div class="status">Loading shared decks...</div>';
+  box.innerHTML =
+    '<div class="status">Loading shared decks...</div>';
 
   try {
     const { data, error } = await supabaseClient
@@ -124,30 +126,66 @@ async function loadSharedDecks(){
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error("Shared Decks error:", error);
 
-    if (!data || data.length === 0) {
-      box.innerHTML = '<div class="status">No shared decks yet.</div>';
+      box.innerHTML =
+        '<div class="status">Could not load shared decks: ' +
+        esc(error.message || error) +
+        "</div>";
+
       return;
     }
 
-    box.innerHTML = data.map(deck => `
-      <div class="card" style="margin:12px 0">
-        <h3>${esc(deck.name || 'Unnamed Deck')}</h3>
-        <div class="small">
-          By ${esc(deck.author || 'Anonymous')}
+    if (!data || data.length === 0) {
+      box.innerHTML =
+        '<div class="status">No shared decks yet.</div>';
+
+      return;
+    }
+
+    box.innerHTML = data.map(deck => {
+      let cards = deck.cards || [];
+
+      if (typeof cards === "string") {
+        try {
+          cards = JSON.parse(cards);
+        } catch (e) {
+          cards = [];
+        }
+      }
+
+      const cardCount = Array.isArray(cards)
+        ? cards.length
+        : 0;
+
+      return `
+        <div class="card" style="margin:12px 0">
+          <h3>🌐 ${esc(deck.name || "Unnamed Deck")}</h3>
+
+          <div class="small">
+            By ${esc(deck.author || "Anonymous")}
+          </div>
+
+          <p>
+            ${esc(deck.description || "No description")}
+          </p>
+
+          <div class="small">
+            🃏 ${cardCount} cards
+            &nbsp; ❤️ ${Number(deck.like || 0)} likes
+          </div>
         </div>
-        <p>${esc(deck.description || 'No description')}</p>
-        <div class="small">
-          ❤️ ${Number(deck.like || 0)} likes
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join("");
 
   } catch (error) {
-    console.error(error);
+    console.error("Shared Decks error:", error);
+
     box.innerHTML =
-      '<div class="status">Could not load shared decks.</div>';
+      '<div class="status">Could not load shared decks: ' +
+      esc(error.message || error) +
+      "</div>";
   }
 }
   
