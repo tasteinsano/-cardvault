@@ -24,8 +24,9 @@ const supabaseClient = window.supabase.createClient(
 <div class="nav">
   <button id="scanTab">📷 Scan Card</button>
   <button id="collectionTab">🗃️ Collection</button>
-  <button id="sharedDecksTab" onclick="alert('Shared Decks button works!')">🌐 Shared Decks</button>
+  <button id="sharedDecksTab" onclick="showSharedDecks()">🌐 Shared Decks</button>
  <button id="deckBuilderTab">🃏 Deck Builder</button>
+ <button id="savedDecksTab" onclick="showSavedDecks()">📚 Saved Decks</button>
 </div>
 <section id="scanner" class="card">
 <h2>Scan a card</h2><p class="muted">No typing required. Hold one Magic card in view, then scan it. CardVault will read the name and collector number when possible.</p>
@@ -61,6 +62,14 @@ const supabaseClient = window.supabase.createClient(
 </section>
 <section id="resultCard" class="card hidden"><h2>Card Found</h2><div id="result"></div><button id="again" class="full secondary">Scan Another Card</button></section>
 <section id="collection" class="card hidden"><h2>My Collection</h2><div id="cards"></div></section>
+ <section id="savedDecks" class="card hidden">
+  <h2>📚 Saved Decks</h2>
+  <p class="muted">View the decks you've saved.</p>
+
+  <div id="savedDecksList">
+    <div class="status">No saved decks yet.</div>
+  </div>
+</section>
  <section id="sharedDecks" class="card hidden">
   <h2>🌐 Shared Decks</h2>
   <p class="muted">Browse decks shared by other collectors.</p>
@@ -178,7 +187,22 @@ async function loadSharedDecks() {
         </div>
       `;
     }).join("");
+   <section id="savedDecks" class="card hidden">
+  <h2>📚 Saved Decks</h2>
+  <p class="muted">Your saved decks.</p>
 
+  <div id="savedDecksList">
+    <div class="status">No saved decks yet.</div>
+  </div>
+</section>
+<section id="savedDecks" class="card hidden">
+  <h2>📚 Saved Decks</h2>
+  <p class="muted">Your saved decks.</p>
+
+  <div id="savedDecksList">
+    <div class="status">No saved decks yet.</div>
+  </div>
+</section>
   } catch (error) {
     console.error("Shared Decks error:", error);
 
@@ -204,7 +228,68 @@ if (sharedDecksTab && sharedDecks) {
     loadSharedDecks();
   };
 }
+ const savedDecksTab = document.getElementById("savedDecksTab");
 
+if (savedDecksTab) {
+  savedDecksTab.onclick = function () {
+    showSavedDecks();
+  };
+}
+// ================== SAVED DECKS ==================
+
+function showSavedDecks() {
+  document.getElementById("scanner")?.classList.add("hidden");
+  document.getElementById("resultCard")?.classList.add("hidden");
+  document.getElementById("collection")?.classList.add("hidden");
+  document.getElementById("sharedDecks")?.classList.add("hidden");
+  document.getElementById("deckBuilder")?.classList.add("hidden");
+
+  const savedDecks = document.getElementById("savedDecks");
+
+  if (!savedDecks) return;
+
+  savedDecks.classList.remove("hidden");
+
+  loadSavedDecks();
+}
+
+function loadSavedDecks() {
+  const box = document.getElementById("savedDecksList");
+
+  if (!box) return;
+
+  const decks = JSON.parse(
+    localStorage.getItem("cardvault_decks") || "[]"
+  );
+
+  if (!decks.length) {
+    box.innerHTML =
+      '<div class="status">No saved decks yet.</div>';
+    return;
+  }
+
+  box.innerHTML = decks.map(deck => `
+    <div class="card" style="margin:10px 0">
+      <h3>🃏 ${esc(deck.name || "Unnamed Deck")}</h3>
+
+      <div class="small">
+        ${deck.cards?.reduce(
+          (total, card) => total + Number(card.quantity || 0),
+          0
+        ) || 0} cards
+      </div>
+
+      <div style="margin-top:12px">
+        ${(deck.cards || []).map(card => `
+          <div style="padding:6px 0">
+            ${esc(card.name || "Unknown Card")}
+            × ${Number(card.quantity || 0)}
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `).join("");
+}
  // ==================== DECK BUILDER ====================
 
 const deckBuilderTab = document.getElementById('deckBuilderTab');
