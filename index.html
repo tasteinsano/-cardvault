@@ -25,6 +25,7 @@ const supabaseClient = window.supabase.createClient(
   <button id="scanTab">📷 Scan Card</button>
   <button id="collectionTab">🗃️ Collection</button>
   <button id="sharedDecksTab">🌐 Shared Decks</button>
+ <button id="deckBuilderTab">🃏 Deck Builder</button>
 </div>
 <section id="scanner" class="card">
 <h2>Scan a card</h2><p class="muted">No typing required. Hold one Magic card in view, then scan it. CardVault will read the name and collector number when possible.</p>
@@ -33,6 +34,30 @@ const supabaseClient = window.supabase.createClient(
 <button id="capture" class="full secondary hidden">📸 Scan This Card</button>
 <div id="status" class="status">Tap Start Camera to begin.</div>
 <canvas id="canvas" class="hidden"></canvas>
+</section>
+ <section id="deckBuilder" class="card hidden">
+  <h2>🃏 Deck Builder</h2>
+  <p class="muted">Build a deck from cards in your collection.</p>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0">
+    <input
+      id="deckName"
+      type="text"
+      placeholder="Deck name"
+      style="flex:1;min-width:200px;padding:12px"
+    >
+    <button id="newDeck" class="secondary">New Deck</button>
+  </div>
+
+  <div id="deckBuilderList">
+    <div class="status">Your collection will appear here.</div>
+  </div>
+
+  <div style="margin-top:16px">
+    <button id="saveDeck" class="full">Save Deck</button>
+  </div>
+
+  <div id="deckStatus" class="status" style="margin-top:12px"></div>
 </section>
 <section id="resultCard" class="card hidden"><h2>Card Found</h2><div id="result"></div><button id="again" class="full secondary">Scan Another Card</button></section>
 <section id="collection" class="card hidden"><h2>My Collection</h2><div id="cards"></div></section>
@@ -199,6 +224,140 @@ if (sharedDecksTab) {
     document.getElementById('collection')?.classList.add('hidden');
     sharedDecks?.classList.remove('hidden');
     loadSharedDecks();
+  };
+}
+ // ==================== DECK BUILDER ====================
+
+const deckBuilderTab = document.getElementById('deckBuilderTab');
+const deckBuilder = document.getElementById('deckBuilder');
+const deckBuilderList = document.getElementById('deckBuilderList');
+const deckName = document.getElementById('deckName');
+const saveDeck = document.getElementById('saveDeck');
+const newDeck = document.getElementById('newDeck');
+const deckStatus = document.getElementById('deckStatus');
+
+let currentDeck = {};
+
+function renderDeckBuilder() {
+  if (!deckBuilderList) return;
+
+  const all = cards();
+
+  if (!all.length) {
+    deckBuilderList.innerHTML =
+      '<div class="status">No cards in your collection yet.</div>';
+    return;
+  }
+
+  deckBuilderList.innerHTML = all.map((c, i) => {
+    const key = c.id || ((c.name || '') + '|' + (c.collectorNumber || ''));
+    const qty = Number(currentDeck[key] || 0);
+
+    return `
+      <div class="card" style="margin:10px 0">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+          <div>
+            <b>${esc(c.name || 'Unknown Card')}</b>
+            <div class="small">${esc(c.collectorNumber || '')}</div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:8px">
+            <button class="secondary" data-deck-minus="${i}">−</button>
+            <b style="min-width:24px;text-align:center">${qty}</b>
+            <button data-deck-plus="${i}">+</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  deckBuilderList.querySelectorAll('[data-deck-minus]').forEach(btn => {
+    btn.onclick = () => {
+      const c = all[Number(btn.dataset.deckMinus)];
+      const key = c.id || ((c.name || '') + '|' + (c.collectorNumber || ''));
+
+      currentDeck[key] = Math.max(0, Number(currentDeck[key] || 0) - 1);
+      renderDeckBuilder();
+    };
+  });
+
+  deckBuilderList.querySelectorAll('[data-deck-plus]').forEach(btn => {
+    btn.onclick = () => {
+      const c = all[Number(btn.dataset.deckPlus)];
+      const key = c.id || ((c.name || '') + '|' + (c.collectorNumber || ''));
+
+      currentDeck[key] = Number(currentDeck[key] || 0) + 1;
+      renderDeckBuilder();
+    };
+  });
+}
+
+function showDeckBuilder() {
+  document.getElementById('scanner')?.classList.add('hidden');
+  document.getElementById('resultCard')?.classList.add('hidden');
+  document.getElementById('collection')?.classList.add('hidden');
+  document.getElementById('sharedDecks')?.classList.add('hidden');
+
+  deckBuilder?.classList.remove('hidden');
+
+  renderDeckBuilder();
+}
+
+if (deckBuilderTab) {
+  deckBuilderTab.onclick = showDeckBuilder;
+}
+
+if (newDeck) {
+  newDeck.onclick = () => {
+    currentDeck = {};
+    deckName.value = '';
+    deckStatus.textContent = 'New deck started.';
+    renderDeckBuilder();
+  };
+}
+
+if (saveDeck) {
+  saveDeck.onclick = () => {
+    const name = deckName.value.trim();
+
+    if (!name) {
+      deckStatus.textContent = 'Please enter a deck name.';
+      return;
+    }
+
+    const decks = JSON.parse(localStorage.getItem('cardvault_decks') || '[]');
+
+    const all = cards();
+
+    const deckCards = [];
+
+    all.forEach(c => {
+      const key = c.id || ((c.name || '') + '|' + (c.collectorNumber || ''));
+      const qty = Number(currentDeck[key] || 0);
+
+      if (qty > 0) {
+        deckCards.push({
+          id: c.id || '',
+          name: c.name || '',
+          collectorNumber: c.collectorNumber || '',
+          quantity: qty
+        });
+      }
+    });
+
+    const deck = {
+      id: Date.now().toString(),
+      name,
+      cards: deckCards,
+      createdAt: new Date().toISOString()
+    };
+
+    decks.push(deck);
+
+    localStorage.setItem('cardvault_decks', JSON.stringify(decks));
+
+    deckStatus.textContent =
+      `Saved "${name}" with ${deckCards.reduce((n, c) => n + c.quantity, 0)} cards.`;
   };
 }
 </script>
